@@ -194,7 +194,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	}
 	var body io.Reader
 	// Setup an upload progress bar
-	// FIXME: ProgressReader shouldn't be this annoyning to use
+	// FIXME: ProgressReader shouldn't be this annoying to use
 	if context != nil {
 		sf := utils.NewStreamFormatter(false)
 		body = utils.ProgressReader(ioutil.NopCloser(context), 0, cli.err, sf.FormatProgress("", "Uploading context", "%v bytes%0.0s%0.0s"), sf, true)
@@ -857,10 +857,12 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	}
 
 	if err := push(); err != nil {
-		if err == fmt.Errorf("Authentication is required.") {
-			if err = cli.checkIfLogged("push"); err == nil {
-				return push()
+		if err.Error() == "Authentication is required." {
+			fmt.Fprintln(cli.out, "\nPlease login prior to push:")
+			if err := cli.CmdLogin(""); err != nil {
+				return err
 			}
+			return push()
 		}
 		return err
 	}
@@ -1507,19 +1509,6 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 		r := bytes.NewReader(data)
 		if err := Untar(r, copyData.HostPath); err != nil {
 			return err
-		}
-	}
-	return nil
-}
-
-func (cli *DockerCli) checkIfLogged(action string) error {
-	// If condition AND the login failed
-	if cli.configFile.Configs[auth.IndexServerAddress()].Username == "" {
-		if err := cli.CmdLogin(""); err != nil {
-			return err
-		}
-		if cli.configFile.Configs[auth.IndexServerAddress()].Username == "" {
-			return fmt.Errorf("Please login prior to %s. ('docker login')", action)
 		}
 	}
 	return nil
